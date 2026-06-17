@@ -4,9 +4,19 @@ This guide walks through setting up a Visual Studio Code tunnel on a NOAA HPC sy
 
 ---
 
+## Important: Accessing the HPC via Parallel Works
+
+This guide assumes you are accessing your HPC system through **[Parallel Works](https://noaa.parallel.works/)**. You do **not** connect directly to the HPC via a terminal client such as PuTTY. Instead:
+
+1. Log into the Parallel Works platform
+2. Open a terminal session on your HPC system through Parallel Works
+3. Follow the steps below from within that terminal session
+
+---
+
 ## Prerequisites
 
-- A NOAA HPC account with SSH access to your target system (`{MACHINE}`)
+- A NOAA HPC account with access to your target system (`{MACHINE}`) via Parallel Works
 - [Visual Studio Code](https://code.visualstudio.com/) installed on your local machine
 - A GitHub account (used to authenticate the tunnel)
 
@@ -20,7 +30,7 @@ A VSCode tunnel allows you to run a VSCode server on a remote HPC system and con
 
 ## Step 1: Set Up `~/bin`
 
-Log into your HPC system and check if `~/bin` exists:
+Log into your HPC system via Parallel Works and check if `~/bin` exists:
 
 ```bash
 ls ~/bin
@@ -246,7 +256,17 @@ ssh {OTHER_NODE} "pkill -u $USER -f tunnel"
 
 ## Notes
 
-- Tunnel scripts run in the background via `nohup`, so you can close your SSH session and the tunnel will persist.
+- Tunnel scripts run in the background via `nohup`, so you can close your Parallel Works terminal session and the tunnel will persist.
 - Output logs are saved to `~/{MACHINE}code.out` for debugging.
 - Each HPC system requires its own tunnel setup and tunnel name.
 - Avoid running tunnels on login nodes for extended periods if system policy discourages it; check your HPC's user guidelines.
+
+---
+
+# 🌟 Acknowledgements 🌟
+
+A huge, heartfelt **thank you** to **Brian Curtis** for making all of this possible.
+
+Brian's expertise, patience, and generosity in sharing his knowledge were instrumental in getting VSCode tunnels working across NOAA HPC systems. He is not only exceptionally skilled, but also one of the kindest and most helpful people you will ever have the pleasure of working with. This guide would not exist without him.
+
+**Thank you, Brian!** 🙏
