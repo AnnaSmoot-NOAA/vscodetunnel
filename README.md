@@ -4,6 +4,58 @@ This guide walks through setting up a Visual Studio Code tunnel on a NOAA HPC sy
 
 ---
 
+## Quick Fix: If You Run Out of Space in `$HOME`
+
+If VSCode suddenly stops reconnecting or you get quota warnings, check these first:
+
+```bash
+quota -s
+du -sh ~/* ~/.??* 2>/dev/null | sort -h
+du -sh ~/bin/* 2>/dev/null | sort -h
+du -sh ~/.vscode/* 2>/dev/null | sort -h
+du -sh ~/.vscode/cli/* 2>/dev/null | sort -h
+```
+
+The most common large directories are:
+
+- `~/bin/VSCode-linux-x64`
+- `~/.vscode/cli/servers`
+- `~/bin/VSCode-linux-x64-old`
+- `~/bin/VSCode-linux-x64.tar.gz`
+- `~/.local/share/code-server`
+
+Usually safe quick cleanup:
+
+```bash
+rm -f ~/bin/VSCode-linux-x64.tar.gz
+rm -f ~/bin/core.code.*
+rm -rf ~/bin/VSCode-linux-x64-old
+```
+
+Best long-term fix: move large VSCode directories to non-home storage and symlink them back:
+
+```bash
+mv ~/bin/VSCode-linux-x64 /path/to/nonhome/storage/
+ln -s /path/to/nonhome/storage/VSCode-linux-x64 ~/bin/VSCode-linux-x64
+
+mkdir -p /path/to/nonhome/storage/vscode-cli
+mv ~/.vscode/cli/servers /path/to/nonhome/storage/vscode-cli/
+ln -s /path/to/nonhome/storage/vscode-cli/servers ~/.vscode/cli/servers
+```
+
+If a move fails because a file is busy, stop the tunnel first:
+
+```bash
+pkill -f 'code tunnel'
+pkill -f code-tunnel
+pkill -f '/home/$USER/bin/VSCode-linux-x64'
+pkill -f '/home/$USER/.vscode/cli/servers'
+```
+
+Then see the **Managing Disk Quota** and **Debugging: No Room Left in `$HOME`** sections below for details.
+
+---
+
 ## Important: Accessing the HPC via Parallel Works
 
 This guide assumes you are accessing your HPC system through **[Parallel Works](https://noaa.parallel.works/)**. You do **not** connect directly to the HPC via a terminal client such as PuTTY. Instead:
