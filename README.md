@@ -206,21 +206,129 @@ https://vscode.dev/tunnel/{MACHINE}code/...
 
 ## Managing Disk Quota
 
-The VSCode binary (`VSCode-linux-x64`) is approximately 1 GB. If your home directory has a tight quota, consider moving it to your scratch space and updating the symlinks:
+The VSCode binary (`VSCode-linux-x64`) is approximately 1 GB. If your home directory has a tight quota, consider moving it to scratch space and keeping the original path by replacing it with a symlink.
+
+### Move the VSCode binary out of `$HOME`
 
 ```bash
-mv ~/bin/VSCode-linux-x64 $SCRATCH/
-cd ~/bin
-rm code code-tunnel
-ln -s $SCRATCH/VSCode-linux-x64/bin/code code
-ln -s $SCRATCH/VSCode-linux-x64/bin/code-tunnel code-tunnel
+mv ~/bin/VSCode-linux-x64 /path/to/nonhome/storage/
+ln -s /path/to/nonhome/storage/VSCode-linux-x64 ~/bin/VSCode-linux-x64
 ```
 
-To check your current home directory quota:
+This is safer than changing the `code` and `code-tunnel` symlinks directly because anything that expects `~/bin/VSCode-linux-x64/...` will still work.
+
+If your system provides a scratch or project filesystem, test that it is writable before moving files:
 
 ```bash
-quota -vs
+ls -ld /path/to/nonhome/storage
+touch /path/to/nonhome/storage/.write_test && rm /path/to/nonhome/storage/.write_test
 ```
+
+### Check your current quota
+
+```bash
+quota -s
+du -sh ~/* ~/.??* 2>/dev/null | sort -h
+```
+
+### Common large directories to inspect
+
+```bash
+du -sh ~/bin/* 2>/dev/null | sort -h
+du -sh ~/.vscode/* 2>/dev/null | sort -h
+du -sh ~/.vscode/cli/* 2>/dev/null | sort -h
+du -sh ~/.local/* 2>/dev/null | sort -h
+du -sh ~/.local/share/* 2>/dev/null | sort -h
+```
+
+Typical space hogs include:
+
+- `~/bin/VSCode-linux-x64`
+- `~/.vscode/cli/servers`
+- old VSCode directories such as `~/bin/VSCode-linux-x64-old`
+- downloaded archives such as `~/bin/VSCode-linux-x64.tar.gz`
+- `~/.local/share/code-server`
+
+---
+
+## Debugging: No Room Left in `$HOME`
+
+If the tunnel worked before but VSCode now fails to connect, reconnects repeatedly, or you receive quota warnings, the most common cause is that VSCode downloaded server or CLI files into your home directory until it hit quota.
+
+### Symptoms
+
+- tunnel starts but VSCode cannot finish connecting
+- repeated reconnects or tunnel restarts
+- quota warning emails
+- `No space left on device`
+- large growth in `~/.vscode`, `~/.vscode/cli`, `~/.local`, or `~/bin`
+
+### Fast triage
+
+Check current quota and top-level usage:
+
+```bash
+quota -s
+du -sh ~/* ~/.??* 2>/dev/null | sort -h
+```
+
+Then inspect the most common VSCode locations:
+
+```bash
+du -sh ~/bin/* 2>/dev/null | sort -h
+du -sh ~/.vscode/* 2>/dev/null | sort -h
+du -sh ~/.vscode/cli/* 2>/dev/null | sort -h
+du -sh ~/.local/share/* 2>/dev/null | sort -h
+```
+
+### What to remove first
+
+These are usually safe cleanup targets:
+
+```bash
+rm -f ~/bin/VSCode-linux-x64.tar.gz
+rm -f ~/bin/core.code.*
+rm -rf ~/bin/VSCode-linux-x64-old
+rm -rf ~/.local/share/code-server.old
+```
+
+Be more careful with active directories such as `~/bin/VSCode-linux-x64` and `~/.vscode/cli/servers`. Those are usually better moved out of `$HOME` than deleted.
+
+### Move the VSCode CLI server cache out of `$HOME`
+
+On some systems, the largest recurring growth is in `~/.vscode/cli/servers`. You can move it to non-home storage and symlink it back:
+
+```bash
+mkdir -p /path/to/nonhome/storage/vscode-cli
+mv ~/.vscode/cli/servers /path/to/nonhome/storage/vscode-cli/
+ln -s /path/to/nonhome/storage/vscode-cli/servers ~/.vscode/cli/servers
+```
+
+Afterward, verify:
+
+```bash
+ls -ld ~/.vscode/cli/servers
+quota -s
+du -sh ~/.vscode/cli
+```
+
+### If a move fails because the directory is busy
+
+If you see errors like `.nfs... Device or resource busy`, stop the tunnel and VSCode-related processes first:
+
+```bash
+pkill -f 'code tunnel'
+pkill -f code-tunnel
+pkill -f '/home/$USER/bin/VSCode-linux-x64'
+pkill -f '/home/$USER/.vscode/cli/servers'
+ps -fu $USER | egrep 'code|tunnel|vscode'
+```
+
+Then retry the move or removal.
+
+### Goal
+
+Do not aim to get just barely under quota. Leave a healthy buffer so reconnecting VSCode does not immediately refill `$HOME`. A few hundred MB may not be enough; 1 GB or more of free space is safer.
 
 ---
 
@@ -250,7 +358,9 @@ ssh {OTHER_NODE} "pkill -u $USER -f tunnel"
 | Tunnel keeps reconnecting (`warn Tunnel exited unexpectedly`) | High node load or network instability | Check node load with `uptime`; try a different node |
 | `WebSocket protocol error: Connection reset` | Network interruption between HPC and GitHub | Wait and allow auto-reconnect, or restart tunnel |
 | `code: command not found` | Symlink missing or `~/bin` not in PATH | Re-check symlinks and `.bashrc` PATH setup |
-| Home directory quota warning email | Large files in `$HOME` | Move `VSCode-linux-x64` to scratch; remove `.tar.gz` archive |
+| Home directory quota warning email | Large files in `$HOME` | Check `quota -s`; inspect `~/bin`, `~/.vscode`, and `~/.vscode/cli`; move large VSCode directories to non-home storage |
+| `mv: cannot create directory '/VSCode-linux-x64': Permission denied` | `$SCRATCH` or other target variable is unset | Check `echo $SCRATCH` and use a real writable path |
+| `.nfs... Device or resource busy` | A deleted file is still open by a running process on NFS | Stop VSCode/tunnel processes, then retry |
 
 ---
 
@@ -267,6 +377,6 @@ ssh {OTHER_NODE} "pkill -u $USER -f tunnel"
 
 A huge, heartfelt **thank you** to **Brian Curtis** for making all of this possible.
 
-Brian's expertise, patience, and generosity in sharing his knowledge were instrumental in getting VSCode tunnels working across NOAA HPC systems. He is not only exceptionally skilled, but also one of the kindest and most helpful people you will ever have the pleasure of working with. This guide would not exist without him.
+Brian's expertise, patience, and generosity in sharing his knowledge were instrumental in getting VSCode tunnels working across NOAA HPC systems. He is not only exceptionally skilled, but also one of the kindest and most supportive colleagues I've had the privilege to learn from.
 
 **Thank you, Brian!** 🙏
