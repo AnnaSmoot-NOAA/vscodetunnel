@@ -427,8 +427,13 @@ ssh {OTHER_NODE} "pkill -u $USER -f tunnel"
 
 # 🌟 Acknowledgements 🌟
 
-A huge, heartfelt **thank you** to **Brian Curtis** for making all of this possible.
+A big **thank you** to **Brian Curtis** for making all of this possible.
 
-Brian's expertise, patience, and generosity in sharing his knowledge were instrumental in getting VSCode tunnels working across NOAA HPC systems. He is not only exceptionally skilled, but also one of the kindest and most supportive colleagues I've had the privilege to learn from.
+Brian's expertise, patience, and generosity in sharing his knowledge were instrumental in getting VSCode tunnels working across NOAA HPC systems. 
 
 **Thank you, Brian!** 🙏
+
+### AI Statement
+
+Generative AI tools are used to assist with developing this code.
+The code has been reviewed, edited, and validated by NWS staff.
